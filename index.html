@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Vision Studio - Image to Video Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/fontsource-inter@4.5.0/index.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #0a0a0f; color: #e0e0e0; transition: background 0.3s, color 0.3s; }
+        .gradient-text { background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glass-panel { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(20px); }
+        .glass-panel-hover:hover { background: rgba(255,255,255,0.06); border-color: rgba(139,92,246,0.3); }
+        .timeline-track { background: linear-gradient(90deg, #1e1b4b, #312e81, #4c1d95); }
+        .timeline-cursor { background: linear-gradient(180deg, #a855f7, #6366f1); box-shadow: 0 0 20px rgba(168,85,247,0.6); }
+        .scene-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .scene-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(139,92,246,0.2); }
+        .scene-card.active { border-color: #a855f7; box-shadow: 0 0 30px rgba(168,85,247,0.3); }
+        .upload-zone { border: 2px dashed rgba(139,92,246,0.4); transition: all 0.3s; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: #a855f7; background: rgba(139,92,246,0.05); }
+        .progress-bar { background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899); background-size: 200% 100%; animation: shimmer 2s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(168,85,247,0.4); } 50% { box-shadow: 0 0 40px rgba(168,85,247,0.8); } }
+        .pulse-glow { animation: pulse-glow 2s infinite; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.5s ease forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        .slide-in { animation: slideIn 0.4s ease forwards; }
+        .btn-primary { background: linear-gradient(135deg, #6366f1, #a855f7); transition: all 0.3s; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(139,92,246,0.4); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-secondary { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s; }
+        .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.1); border-color: rgba(139,92,246,0.3); }
+        .btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 3px; }
+        .modal-overlay { background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); }
+        .tooltip { position: relative; }
+        .tooltip::after { content: attr(data-tooltip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); padding: 4px 8px; background: #1e1b4b; border-radius: 4px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 100; }
+        .tooltip:hover::after { opacity: 1; }
+        .input-field { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s; color: inherit; }
+        .input-field:focus { border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168,85,247,0.1); outline: none; }
+        .scene-thumb { aspect-ratio: 16/9; object-fit: cover; }
+        .video-preview { aspect-ratio: 16/9; background: #111; }
+        .notification { animation: slideIn 0.3s ease; }
+        .range-slider { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); outline: none; }
+        .range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #a855f7; cursor: pointer; box-shadow: 0 0 10px rgba(168,85,247,0.5); }
+        .tab-active { border-bottom: 2px solid #a855f7; color: #a855f7 !important; }
+        .loader { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #a855f7; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .badge { background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2)); border: 1px solid rgba(168,85,247,0.3); }
+        .grid-bg { background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 20px 20px; }
+        
+        /* Ajustes de modo claro */
+        body.light-theme { background: #f4f4f9; color: #1f2937; background-image: radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px); }
+        body.light-theme .glass-panel { background: rgba(0, 0, 0, 0.02); border-color: rgba(0, 0, 0, 0.08); }
+        body.light-theme .input-field { background: rgba(0, 0, 0, 0.02); border-color: rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body class="min-h-screen grid-bg">
+    <header class="sticky top-0 z-50 glass-panel border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <i class="fas fa-wand-magic-sparkles text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold gradient-text">AI Vision Studio</h1>
+                    <p class="text-xs text-gray-500">Image to Video Generator</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <button id="themeToggle" class="tooltip btn-secondary px-3 py-2 rounded-lg text-sm" data-tooltip="Toggle Theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="settingsBtn" class="tooltip btn-secondary px-3 py-2 rounded-lg text-sm" data-tooltip="Settings">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <div class="flex items-center gap-2 badge px-3 py-1 rounded-full text-xs">
+                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span class="text-green-400">Free</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-6">
+        <div class="flex gap-6 mb-6 border-b border-white/10">
+            <button class="tab-btn tab-active pb-3 text-sm font-medium transition-all" data-tab="generate">
+                <i class="fas fa-film mr-2"></i>Generate
+            </button>
+            <button class="tab-btn pb-3 text-sm font-medium text-gray-500 hover:text-gray-300 transition-all" data-tab="sequencer">
+                <i class="fas fa-layer-group mr-2"></i>Video Sequencer
+            </button>
+            <button class="tab-btn pb-3 text-sm font-medium text-gray-500 hover:text-gray-300 transition-all" data-tab="gallery">
+                <i class="fas fa-images mr-2"></i>Gallery
+            </button>
+        </div>
+
+        <div id="tab-generate" class="tab-content fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="glass-panel rounded-2xl p-6">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-cloud-arrow-up text-purple-400"></i>
+                            Upload Image
+                        </h2>
+                        <div id="uploadZone" class="upload-zone rounded-xl p-8 text-center cursor-pointer">
+                            <input type="file" id="fileInput" accept="image/*" class="hidden" multiple>
+                            <div id="uploadPlaceholder">
+                                <i class="fas fa-image text-4xl text-gray-500 mb-3"></i>
+                                <p class="text-gray-400 mb-2">Drag & drop images here or click to browse</p>
+                                <p class="text-xs text-gray-600">Supports: PNG, JPG, WEBP • Max 10MB each</p>
+                            </div>
+                            <div id="uploadedImages" class="hidden grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-2xl p-6">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-terminal text-purple-400"></i>
+                            Generation Settings
+                        </h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-sm text-gray-400 mb-2 block">Video Description Prompt</label>
+                                <textarea id="promptInput" rows="3" class="input-field w-full rounded-xl p-4 text-sm resize-none" placeholder="Describe the video you want to generate from the image... (e.g., 'Camera slowly pans left while the character turns and smiles, cinematic lighting, 4k quality')"></textarea>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm text-gray-400 mb-2 block">Style</label>
+                                    <select id="styleSelect" class="input-field w-full rounded-xl p-3 text-sm">
+                                        <option value="cinematic">Cinematic</option>
+                                        <option value="anime">Anime</option>
+                                        <option value="realistic">Photorealistic</option>
+                                        <option value="3d">3D Animation</option>
+                                        <option value="watercolor">Watercolor</option>
+                                        <option value="cyberpunk">Cyberpunk</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-sm text-gray-400 mb-2 block">Duration</label>
+                                    <select id="durationSelect" class="input-field w-full rounded-xl p-3 text-sm">
+                                        <option value="3">3 seconds</option>
+                                        <option value="5" selected>5 seconds</option>
+                                        <option value="10">10 seconds</option>
+                                        <option value="15">15 seconds</option>
+                                        <option value="30">30 seconds</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-sm text-gray-400 mb-2 block">Resolution</label>
+                                    <select id="resolutionSelect" class="input-field w-full rounded-xl p-3 text-sm">
+                                        <option value="720p">720p HD</option>
+                                        <option value="1080p" selected>1080p Full HD</option>
+                                        <option value="4k">4K Ultra HD</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-sm text-gray-400 mb-2 block">FPS</label>
+                                    <select id="fpsSelect" class="input-field w-full rounded-xl p-3 text-sm">
+                                        <option value="24">24 FPS</option>
+                                        <option value="30" selected>30 FPS</option>
+                                        <option value="60">60 FPS</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-400 mb-2 block">Camera Motion</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <button class="motion-btn btn-secondary px-4 py-2 rounded-lg text-xs" data-motion="pan-left">
+                                        <i class="fas fa-arrow-left mr-1"></i>Pan Left
+                                    </button>
+                                    <button class="motion-btn btn-secondary px-4 py-2 rounded-lg text-xs" data-motion="pan-right">
+                                        <i class="fas fa-arrow-right mr-1"></i>Pan Right
+                                    </button>
+                                    <button class="motion-btn btn-secondary px-4 py-2 rounded-lg text-xs" data-motion="zoom-in">
+                                        <i class="fas fa-search-plus mr-1"></i>Zoom In
+                                    </button>
+                                    <button class="motion-btn btn-secondary px-4 py-2 rounded-lg text-xs" data-motion="zoom-out">
+                                        <i class="fas fa-search-minus mr-1"></i>Zoom Out
+                                    </button>
+                                    <button class="motion-btn btn-secondary px-4 py-2 rounded-lg text-xs" data-motion="orbit">
+                                        <i class="fas fa-sync mr-1"></i>Orbit
+                                    </button>
+                                    <button class="motion-btn btn-secondary px-4 py-2 rounded-lg text-xs" data-motion="dolly">
+                                        <i class="fas fa-truck mr-1"></i>Dolly
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="generateBtn" class="btn-primary w-full py-4 rounded-xl text-lg font-semibold flex items-center justify-center gap-3">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        Generate Video
+                    </button>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="glass-panel rounded-2xl p-6">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-play-circle text-purple-400"></i>
+                            Preview
+                        </h2>
+                        <div class="video-preview rounded-xl overflow-hidden relative bg-gradient-to-br from-gray-900 to-black flex items-center justify-center min-h-[250px]">
+                            <div id="previewPlaceholder" class="text-center">
+                                <i class="fas fa-film text-5xl text-gray-700 mb-3"></i>
+                                <p class="text-gray-500 text-sm">Generated video will appear here</p>
+                            </div>
+                            <img id="previewImage" class="hidden w-full h-full object-cover" alt="Preview">
+                            <canvas id="videoCanvas" class="hidden w-full h-full"></canvas>
+                            <div id="previewOverlay" class="hidden absolute inset-0 bg-black/50 flex items-center justify-center">
+                                <button id="playBtn" class="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition">
+                                    <i class="fas fa-play text-2xl text-white ml-1"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="generationProgress" class="hidden mt-4">
+                            <div class="flex justify-between text-xs text-gray-400 mb-2">
+                                <span id="progressLabel">Analyzing image...</span>
+                                <span id="progressPercent">0%</span>
+                            </div>
+                            <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+                                <div id="progressBar" class="progress-bar h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-2xl p-6">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-bolt text-yellow-400"></i>
+                            Quick Actions
+                        </h2>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button id="addToSequencerBtn" class="btn-secondary p-3 rounded-xl text-sm flex items-center gap-2 justify-center" disabled>
+                                <i class="fas fa-plus text-purple-400"></i>
+                                Add to Sequence
+                            </button>
+                            <button id="downloadBtn" class="btn-secondary p-3 rounded-xl text-sm flex items-center gap-2 justify-center" disabled>
+                                <i class="fas fa-download text-green-400"></i>
+                                Download MP4
+                            </button>
+                            <button id="shareBtn" class="btn-secondary p-3 rounded-xl text-sm flex items-center gap-2 justify-center" disabled>
+                                <i class="fas fa-share text-blue-400"></i>
+                                Share
+                            </button>
+                            <button id="regenerateBtn" class="btn-secondary p-3 rounded-xl text-sm flex items-center gap-2 justify-center" disabled>
+                                <i class="fas fa-rotate text-orange-400"></i>
+                                Regenerate
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-2xl p-6">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-robot text-cyan-400"></i>
+                            AI Agent
+                        </h2>
+                        <div id="agentStatus" class="space-y-3">
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-sequencer" class="tab-content hidden fade-in">
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold">Video Sequencer</h2>
+                        <p class="text-sm text-gray-500">Arrange and edit your video scenes</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button id="addSceneBtn" class="btn-primary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                            <i class="fas fa-plus"></i>
+                            Add Scene
+                        </button>
+                        <button id="exportSequenceBtn" class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                            <i class="fas fa-file-export"></i>
+                            Export Video
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-4">
+                            <button id="seqPlayBtn" class="w-10 h-10 rounded-full btn-primary flex items-center justify-center">
+                                <i class="fas fa-play text-white"></i>
+                            </button>
+                            <span id="timeDisplay" class="text-sm font-mono text-gray-400">00:00 / 00:00</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-500">Speed:</span>
+                            <select id="playbackSpeed" class="input-field px-2 py-1 rounded text-xs">
+                                <option value="0.5">0.5x</option>
+                                <option value="1" selected>1x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2x</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="relative h-24 bg-white/5 rounded-xl overflow-hidden mb-4">
+                        <div class="timeline-track absolute inset-0 opacity-30"></div>
+                        <div id="timelineScenes" class="absolute inset-0 flex gap-1 p-2"></div>
+                        <div id="timelineCursor" class="timeline-cursor absolute top-0 bottom-0 w-0.5 left-0 z-10"></div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <button id="zoomOutTimeline" class="btn-secondary px-3 py-1 rounded text-xs">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <span class="text-xs text-gray-500">Timeline Zoom</span>
+                            <button id="zoomInTimeline" class="btn-secondary px-3 py-1 rounded text-xs">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <label class="text-xs text-gray-500">Transition:</label>
+                            <select id="transitionType" class="input-field px-3 py-1 rounded text-xs">
+                                <option value="cut">Cut</option>
+                                <option value="fade">Fade</option>
+                                <option value="dissolve">Dissolve</option>
+                                <option value="slide-left">Slide Left</option>
+                                <option value="slide-right">Slide Right</option>
+                                <option value="zoom">Zoom</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="scenesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    </div>
+
+                <div id="sequencerEmpty" class="text-center py-16">
+                    <i class="fas fa-film text-6xl text-gray-700 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-400 mb-2">No scenes yet</h3>
+                    <p class="text-gray-600 mb-4">Generate videos and add them to the sequencer</p>
+                    <button id="goToGeneratorBtn" class="btn-primary px-6 py-2 rounded-lg text-sm">
+                        <i class="fas fa-wand-magic-sparkles mr-2"></i>
+                        Go to Generator
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-gallery" class="tab-content hidden fade-in">
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold">Generated Videos</h2>
+                        <p class="text-sm text-gray-500">Your video creation history</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <select id="galleryFilter" class="input-field px-3 py-2 rounded-lg text-sm">
+                            <option value="all">All Videos</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                        </select>
+                        <button id="clearGalleryBtn" class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                            <i class="fas fa-trash"></i>
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+
+                <div id="galleryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    </div>
+
+                <div id="galleryEmpty" class="text-center py-16">
+                    <i class="fas fa-images text-6xl text-gray-700 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-400 mb-2">No videos yet</h3>
+                    <p class="text-gray-600 mb-4">Your generated videos will appear here</p>
+                    <button id="goToGeneratorGalleryBtn" class="btn-primary px-6 py-2 rounded-lg text-sm">
+                        <i class="fas fa-wand-magic-sparkles mr-2"></i>
+                        Generate Your First Video
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="sceneModal" class="fixed inset-0 z-50 modal-overlay hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-[#13131a]">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-bold">Edit Scene</h3>
+                <button id="closeModalBtn" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div class="video-preview rounded-xl overflow-hidden bg-black flex items-center justify-center">
+                    <img id="modalPreviewImage" class="w-full h-auto max-h-64 object-contain" alt="Scene">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400 mb-2 block">Scene Prompt</label>
+                    <textarea id="modalPrompt" rows="3" class="input-field w-full rounded-xl p-4 text-sm resize-none"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm text-gray-400 mb-2 block">Duration: <span id="modalDurationVal">5s</span></label>
+                        <input type="range" id="modalDuration" min="1" max="30" value="5" class="range-slider">
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-400 mb-2 block">Transition Duration: <span id="modalTransVal">0.5s</span></label>
+                        <input type="range" id="modalTransition" min="0" max="2" step="0.5" value="0.5" class="range-slider">
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button id="saveSceneBtn" class="btn-primary flex-1 py-3 rounded-xl font-semibold">Save Changes</button>
+                    <button id="deleteSceneBtn" class="btn-secondary px-6 py-3 rounded-xl text-red-400 hover:bg-red-500/10">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notifications" class="fixed top-20 right-6 z-50 space-y-3"></div>
+
+    <script>
+        // State
+        const state = {
+            uploadedImages: [],
+            currentTab: 'generate',
+            scenes: [],
+            galleryItems: [],
+            isGenerating: false,
+            selectedMotion: null,
+            currentSceneIndex: -1,
+            isPlaying: false,
+            playbackPosition: 0,
+            editingSceneId: null,
+            timelineZoom: 1
+        };
+
+        // DOM Elements
+        const elements = {
+            uploadZone: document.getElementById('uploadZone'),
+            fileInput: document.getElementById('fileInput'),
+            uploadPlaceholder: document.getElementById('uploadPlaceholder'),
+            uploadedImages: document.getElementById('uploadedImages'),
+            promptInput: document.getElementById('promptInput'),
+            generateBtn: document.getElementById('generateBtn'),
+            generationProgress: document.getElementById('generationProgress'),
+            progressBar: document.getElementById('progressBar'),
+            progressLabel: document.getElementById('progressLabel'),
+            progressPercent: document.getElementById('progressPercent'),
+            previewImage: document.getElementById('previewImage'),
+            previewPlaceholder: document.getElementById('previewPlaceholder'),
+            previewOverlay: document.getElementById('previewOverlay'),
+            addToSequencerBtn: document.getElementById('addToSequencerBtn'),
+            downloadBtn: document.getElementById('downloadBtn'),
+            shareBtn: document.getElementById('shareBtn'),
+            regenerateBtn: document.getElementById('regenerateBtn'),
+            scenesGrid: document.getElementById('scenesGrid'),
+            sequencerEmpty: document.getElementById('sequencerEmpty'),
+            galleryGrid: document.getElementById('galleryGrid'),
+            galleryEmpty: document.getElementById('galleryEmpty'),
+            sceneModal: document.getElementById('sceneModal'),
+            notifications: document.getElementById('notifications'),
+            agentStatus: document.getElementById('agentStatus'),
+            timelineScenes: document.getElementById('timelineScenes'),
+            timelineCursor: document.getElementById('timelineCursor'),
+            timeDisplay: document.getElementById('timeDisplay'),
+            seqPlayBtn: document.getElementById('seqPlayBtn'),
+            addSceneBtn: document.getElementById('addSceneBtn'),
+            exportSequenceBtn: document.getElementById('exportSequenceBtn'),
+            zoomOutTimeline: document.getElementById('zoomOutTimeline'),
+            zoomInTimeline: document.getElementById('zoomInTimeline'),
+            goToGeneratorBtn: document.getElementById('goToGeneratorBtn'),
+            goToGeneratorGalleryBtn: document.getElementById('goToGeneratorGalleryBtn'),
+            clearGalleryBtn: document.getElementById('clearGalleryBtn'),
+            themeToggle: document.getElementById('themeToggle'),
+            settingsBtn: document.getElementById('settingsBtn')
+        };
+
+        // Utility Functions
+        function generateId() { return Math.random().toString(36).substr(2, 9); }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function showNotification(message, type = 'info') {
+            const colors = {
+                success: 'bg-green-500/20 border-green-500/30 text-green-400',
+                error: 'bg-red-500/20 border-red-500/30 text-red-400',
+                info: 'bg-blue-500/20 border-blue-500/30 text-blue-400'
+            };
+            const icons = { success: 'check-circle', error: 'exclamation-circle', info: 'info-circle' };
+            
+            const notification = document.createElement('div');
+            notification.className = `notification glass-panel ${colors[type]} border px-4 py-3 rounded-xl flex items-center gap-3 text-sm`;
+            notification.innerHTML = `<i class="fas fa-${icons[type]}"></i><span>${message}</span>`;
+            elements.notifications.appendChild(notification);
+            setTimeout(() => notification.remove(), 4000);
+        }
+
+        function switchTab(tab) {
+            state.currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('text-gray-500');
+            });
+            const activeBtn = document.querySelector(`[data-tab="${tab}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('tab-active');
+                activeBtn.classList.remove('text-gray-500');
+            }
+            
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            const activeContent = document.getElementById(`tab-${tab}`);
+            if (activeContent) activeContent.classList.remove('hidden');
+        }
+
+        function updateAgentStatus(step) {
+            const steps = ['Image Analysis Ready', 'Motion Planning', 'Frame Generation', 'Video Encoding'];
+            elements.agentStatus.innerHTML = steps.map((s, i) => {
+                const isComplete = i < step;
+                const isCurrent = i === step;
+                return `
+                    <div class="flex items-center gap-3 p-3 rounded-lg ${isComplete ? 'bg-green-500/10 border border-green-500/20' : isCurrent ? 'bg-purple-500/10 border border-purple-500/30' : 'bg-white/5 opacity-50'}">
+                        <div class="w-3 h-3 ${isComplete ? 'bg-green-400' : isCurrent ? 'bg-purple-400 animate-pulse' : 'bg-gray-500'} rounded-full"></div>
+                        <span class="text-sm">${isComplete ? `<i class="fas fa-check mr-1"></i>` : ''}${s}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Image Upload Handlers
+        elements.uploadZone.addEventListener('click', () => elements.fileInput.click());
+        elements.uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            elements.uploadZone.classList.add('dragover');
+        });
+        elements.uploadZone.addEventListener('dragleave', () => {
+            elements.uploadZone.classList.remove('dragover');
+        });
+        elements.uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            elements.uploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        elements.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        state.uploadedImages.push({ id: generateId(), src: e.target.result, name: file.name });
+                        renderUploadedImages();
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    showNotification('File must be an image and under 10MB', 'error');
+                }
+            });
+        }
+
+        function renderUploadedImages() {
+            if (state.uploadedImages.length > 0) {
+                elements.uploadPlaceholder.classList.add('hidden');
+                elements.uploadedImages.classList.remove('hidden');
+                elements.uploadedImages.classList.add('grid');
+                elements.uploadedImages.innerHTML = state.uploadedImages.map((img, i) => `
+                    <div class="relative group rounded-lg overflow-hidden">
+                        <img src="${img.src}" class="w-full h-24 object-cover" alt="Uploaded">
+                        <button type="button" data-index="${i}" class="delete-img-btn absolute top-1 right-1 w-6 h-6 bg-red-500/80 rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition">
+                            <i class="fas fa-times text-white pointer-events-none"></i>
+                        </button>
+                        ${i === 0 ? '<div class="absolute top-1 left-1 badge px-2 py-0.5 rounded text-[10px]">Primary</div>' : ''}
+                    </div>
+                `).join('');
+
+                // Adjuntar eventos a los nuevos botones dinámicos
+                elements.uploadedImages.querySelectorAll('.delete-img-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeImage(parseInt(btn.dataset.index));
+                    });
+                });
+            } else {
+                elements.uploadPlaceholder.classList.remove('hidden');
+                elements.uploadedImages.classList.add('hidden');
+                elements.uploadedImages.classList.remove('grid');
+            }
+        }
+
+        function removeImage(index) {
+            state.uploadedImages.splice(index, 1);
+            renderUploadedImages();
+        }
+
+        // Motion Selection
+        document.querySelectorAll('.motion-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.motion-btn').forEach(b => {
+                    b.classList.remove('btn-primary');
+                    b.classList.add('btn-secondary');
+                });
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-primary');
+                state.selectedMotion = btn.dataset.motion;
+            });
+        });
+
+        // Generate Video
+        elements.generateBtn.addEventListener('click', async () => {
+            if (state.uploadedImages.length === 0) {
+                showNotification('Please upload at least one image', 'error');
+                return;
+            }
+
+            if (state.isGenerating) return;
+            state.isGenerating = true;
+            elements.generateBtn.disabled = true;
+            elements.generateBtn.innerHTML = '<div class="loader"></div><span>Generating...</span>';
+            elements.generationProgress.classList.remove('hidden');
+
+            const totalDuration = parseInt(document.getElementById('durationSelect').value);
+            const steps = [
+                { label: 'Analyzing image composition...', progress: 15, agentStep: 0 },
+                { label: 'Detecting subjects and depth...', progress: 25, agentStep: 0 },
+                { label: 'Planning camera motion...', progress: 35, agentStep: 1 },
+                { label: 'Generating motion vectors...', progress: 45, agentStep: 1 },
+                { label: 'Generating intermediate frames...', progress: 55, agentStep: 2 },
+                { label: 'Rendering frames at 30fps...', progress: 65, agentStep: 2 },
+                { label: 'Applying motion blur...', progress: 75, agentStep: 2 },
+                { label: 'Encoding video stream...', progress: 85, agentStep: 3 },
+                { label: 'Optimizing quality...', progress: 92, agentStep: 3 },
+                { label: 'Finalizing output...', progress: 100, agentStep: 3 }
+            ];
+
+            for (const step of steps) {
+                await new Promise(resolve => setTimeout(resolve, 400 + Math.random() * 300));
+                elements.progressBar.style.width = step.progress + '%';
+                elements.progressLabel.textContent = step.label;
+                elements.progressPercent.textContent = step.progress + '%';
+                updateAgentStatus(step.agentStep);
+            }
+
+            // Render Preview Assets
+            elements.previewImage.src = state.uploadedImages[0].src;
+            elements.previewImage.classList.remove('hidden');
+            elements.previewOverlay.classList.remove('hidden');
+            elements.previewPlaceholder.classList.add('hidden');
+
+            // Enable quick action buttons visually and functionally
+            ['addToSequencerBtn', 'downloadBtn', 'shareBtn', 'regenerateBtn'].forEach(id => {
+                elements[id].disabled = false;
+            });
+
+            // Add to internal gallery state
+            const newGalleryItem = {
+                id: generateId(),
+                src: state.uploadedImages[0].src,
+                prompt: elements.promptInput.value,
+                style: document.getElementById('styleSelect').value,
+                duration: totalDuration,
+                motion: state.selectedMotion || 'None',
+                timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            };
+            state.galleryItems.unshift(newGalleryItem);
+            renderGallery();
+
+            state.isGenerating = false;
+            elements.generateBtn.disabled = false;
+            elements.generateBtn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> Generate Video';
+            
+            showNotification('Video generated successfully!', 'success');
+            updateAgentStatus(4);
+        });
+
+        // Canvas Video Emulation Player
+        document.getElementById('playBtn').addEventListener('click', () => {
+            const canvas = document.getElementById('videoCanvas');
+            const previewImg = document.getElementById('previewImage');
+            const overlay = document.getElementById('previewOverlay');
+            
+            if (!canvas.classList.contains('hidden')) {
+                canvas.classList.add('hidden');
+                previewImg.classList.remove('hidden');
+                overlay.classList.remove('hidden');
+                return;
+            }
+
+            previewImg.classList.add('hidden');
+            overlay.classList.add('hidden');
+            canvas.classList.remove('hidden');
+
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth || 400;
+            canvas.height = canvas.offsetHeight || 225;
+
+            const img = new Image();
+            img.onload = () => {
+                let frame = 0;
+                const animate = () => {
+                    if (canvas.classList.contains('hidden')) return; // Guard por si se cancela
+                    frame++;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    const scale = 1 + Math.sin(frame * 0.02) * 0.08;
+                    const translateX = Math.sin(frame * 0.01) * 15;
+                    const translateY = Math.cos(frame * 0.01) * 8;
+                    
+                    ctx.save();
+                    ctx.translate(canvas.width / 2, canvas.height / 2);
+                    ctx.scale(scale, scale);
+                    ctx.translate(-canvas.width / 2 + translateX, -canvas.height / 2 + translateY);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    ctx.restore();
+                    
+                    ctx.fillStyle = `rgba(139, 92, 246, ${0.03 + Math.sin(frame * 0.05) * 0.02})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    if (frame < 150) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        canvas.classList.add('hidden');
+                        previewImg.classList.remove('hidden');
+                        overlay.classList.remove('hidden');
+                    }
+                };
+                animate();
+            };
+            img.src = state.uploadedImages[0].src;
+        });
+
+        // Add to Sequencer Actions
+        elements.addToSequencerBtn.addEventListener('click', () => {
+            if (state.uploadedImages.length === 0) return;
+            
+            const newScene = {
+                id: generateId(),
+                src: state.uploadedImages[0].src,
+                prompt: elements.promptInput.value,
+                style: document.getElementById('styleSelect').value,
+                duration: parseInt(document.getElementById('durationSelect').value),
+                motion: state.selectedMotion || 'pan-left',
+                transition: document.getElementById('transitionType').value
+            };
+            
+            state.scenes.push(newScene);
+            renderSequencer();
+            showNotification('Scene added to sequencer', 'success');
+        });
+
+        // Quick Actions Handlers
+        elements.downloadBtn.addEventListener('click', () => {
+            showNotification('Video download started (simulated)', 'info');
+            setTimeout(() => showNotification('Download complete!', 'success'), 1500);
+        });
+
+        elements.shareBtn.addEventListener('click', () => {
+            showNotification('Share link copied to clipboard!', 'success');
+        });
+
+        elements.regenerateBtn.addEventListener('click', () => {
+            elements.generateBtn.click();
+        });
+
+        // Render Sequencer Interface
+        function renderSequencer() {
+            if (state.scenes.length === 0) {
+                elements.scenesGrid.classList.add('hidden');
+                elements.sequencerEmpty.classList.remove('hidden');
+            } else {
+                elements.scenesGrid.classList.remove('hidden');
+                elements.sequencerEmpty.classList.add('hidden');
+            }
+
+            // Render timeline block layout
+            elements.timelineScenes.innerHTML = state.scenes.map((scene, i) => {
+                const width = scene.duration * 8 * state.timelineZoom;
+                return `
+                    <div class="timeline-block relative h-full rounded-lg overflow-hidden flex-shrink-0 cursor-pointer scene-card ${i === state.currentSceneIndex ? 'active' : ''}" 
+                         style="width: ${width}px; min-width: 60px; background: linear-gradient(135deg, #1e1b4b, #312e81);"
+                         data-index="${i}">
+                        <img src="${scene.src}" class="w-full h-full object-cover opacity-60 pointer-events-none" alt="Scene">
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span class="text-xs font-bold bg-black/50 px-2 py-1 rounded">${i + 1}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Asignar listeners a la línea de tiempo
+            elements.timelineScenes.querySelectorAll('.timeline-block').forEach(block => {
+                block.addEventListener('click', () => {
+                    state.currentSceneIndex = parseInt(block.dataset.index);
+                    renderSequencer();
+                });
+            });
+
+            // Render modular grid items
+            elements.scenesGrid.innerHTML = state.scenes.map((scene, i) => `
+                <div class="grid-scene-card scene-card glass-panel rounded-xl overflow-hidden cursor-pointer" data-id="${scene.id}">
+                    <div class="relative">
+                        <img src="${scene.src}" class="w-full scene-thumb" alt="Scene ${i + 1}">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                            <div class="p-3">
+                                <span class="badge px-2 py-1 rounded text-xs">Scene ${i + 1}</span>
+                                <span class="badge px-2 py-1 rounded text-xs ml-1">${scene.duration}s</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <p class="text-xs text-gray-400 truncate">${scene.prompt || 'No prompt set'}</p>
+                        <div class="flex items-center justify-between mt-2">
+                            <span class="text-[10px] text-gray-500 uppercase font-semibold">${scene.style}</span>
+                            <button type="button" data-id="${scene.id}" class="delete-scene-btn text-gray-500 hover:text-red-400 transition">
+                                <i class="fas fa-trash text-xs pointer-events-none"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Asignar listeners para editar y borrar escenas de la cuadrícula
+            elements.scenesGrid.querySelectorAll('.grid-scene-card').forEach(card => {
+                card.addEventListener('click', () => openSceneModal(card.dataset.id));
+            });
+            elements.scenesGrid.querySelectorAll('.delete-scene-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeScene(btn.dataset.id);
+                });
+            });
+
+            // Update global sequence duration context
+            const totalDuration = state.scenes.reduce((sum, s) => sum + s.duration, 0);
+            elements.timeDisplay.textContent = `00:00 / ${formatTime(totalDuration)}`;
+        }
+
+        function removeScene(id) {
+            state.scenes = state.scenes.filter(s => s.id !== id);
+            if(state.currentSceneIndex >= state.scenes.length) state.currentSceneIndex = -1;
+            renderSequencer();
+            showNotification('Scene removed', 'info');
+        }
+
+        function openSceneModal(id) {
+            const scene = state.scenes.find(s => s.id === id);
+            if (!scene) return;
+            
+            state.editingSceneId = id;
+            document.getElementById('modalPreviewImage').src = scene.src;
+            document.getElementById('modalPrompt').value = scene.prompt || '';
+            document.getElementById('modalDuration').value = scene.duration;
+            document.getElementById('modalDurationVal').textContent = scene.duration + 's';
+            elements.sceneModal.classList.remove('hidden');
+            elements.sceneModal.classList.add('flex');
+        }
+
+        // Modal Action Observers
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            elements.sceneModal.classList.add('hidden');
+            elements.sceneModal.classList.remove('flex');
+        });
+        document.getElementById('modalDuration').addEventListener('input', (e) => {
+            document.getElementById('modalDurationVal').textContent = e.target.value + 's';
+        });
+        document.getElementById('modalTransition').addEventListener('input', (e) => {
+            document.getElementById('modalTransVal').textContent = e.target.value + 's';
+        });
+
+        document.getElementById('saveSceneBtn').addEventListener('click', () => {
+            const scene = state.scenes.find(s => s.id === state.editingSceneId);
+            if (scene) {
+                scene.prompt = document.getElementById('modalPrompt').value;
+                scene.duration = parseInt(document.getElementById('modalDuration').value);
+                renderSequencer();
+                showNotification('Scene updated successfully', 'success');
+            }
+            elements.sceneModal.classList.add('hidden');
+            elements.sceneModal.classList.remove('flex');
+        });
+
+        document.getElementById('deleteSceneBtn').addEventListener('click', () => {
+            removeScene(state.editingSceneId);
+            elements.sceneModal.classList.add('hidden');
+            elements.sceneModal.classList.remove('flex');
+        });
+
+        // Sequencer Playback Core Engine Logic
+        let playbackInterval;
+        elements.seqPlayBtn.addEventListener('click', () => {
+            if (state.scenes.length === 0) {
+                showNotification('No scenes to play', 'error');
+                return;
+            }
+
+            state.isPlaying = !state.isPlaying;
+            const icon = elements.seqPlayBtn.querySelector('i');
+            icon.className = state.isPlaying ? 'fas fa-pause text-white' : 'fas fa-play text-white';
+            
+            const totalDuration = state.scenes.reduce((sum, s) => sum + s.duration, 0);
+
+            if (state.isPlaying) {
+                // Si la reproducción terminó previamente, reiniciar la posición de reproducción
+                if (state.playbackPosition >= totalDuration) state.playbackPosition = 0;
+
+                playbackInterval = setInterval(() => {
+                    const speedMultiplier = parseFloat(document.getElementById('playbackSpeed').value) || 1;
+                    state.playbackPosition += (0.1 * speedMultiplier);
+                    
+                    if (state.playbackPosition >= totalDuration) {
+                        state.playbackPosition = totalDuration;
+                        state.isPlaying = false;
+                        icon.className = 'fas fa-play text-white';
+                        clearInterval(playbackInterval);
+                    }
+                    
+                    const positionPercent = (state.playbackPosition / totalDuration) * 100;
+                    elements.timelineCursor.style.left = positionPercent + '%';
+                    elements.timeDisplay.textContent = `${formatTime(state.playbackPosition)} / ${formatTime(totalDuration)}`;
+                }, 100);
+            } else {
+                clearInterval(playbackInterval);
+            }
+        });
+
+        // Generic Scene Generator Button
+        elements.addSceneBtn.addEventListener('click', () => {
+            if (state.uploadedImages.length === 0) {
+                showNotification('Upload an image first in the Generate tab', 'error');
+                switchTab('generate');
+                return;
+            }
+            
+            const newScene = {
+                id: generateId(),
+                src: state.uploadedImages[0].src,
+                prompt: '',
+                style: document.getElementById('styleSelect').value,
+                duration: parseInt(document.getElementById('durationSelect').value),
+                motion: state.selectedMotion || 'pan-left',
+                transition: document.getElementById('transitionType').value
+            };
+            
+            state.scenes.push(newScene);
+            renderSequencer();
+            showNotification('New sequence block created', 'success');
+        });
+
+        elements.exportSequenceBtn.addEventListener('click', () => {
+            if (state.scenes.length === 0) {
+                showNotification('Add scenes before exporting', 'error');
+                return;
+            }
+            showNotification('Exporting project video timeline...', 'info');
+            setTimeout(() => showNotification('Project exported successfully as MP4!', 'success'), 2500);
+        });
+
+        // Zoom Listeners
+        elements.zoomInTimeline.addEventListener('click', () => {
+            state.timelineZoom = Math.min(3, state.timelineZoom + 0.5);
+            renderSequencer();
+        });
+        elements.zoomOutTimeline.addEventListener('click', () => {
+            state.timelineZoom = Math.max(0.5, state.timelineZoom - 0.5);
+            renderSequencer();
+        });
+
+        // Tab Switching Observers
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+
+        // Empty state context switches
+        elements.goToGeneratorBtn.addEventListener('click', () => switchTab('generate'));
+        elements.goToGeneratorGalleryBtn.addEventListener('click', () => switchTab('generate'));
+
+        // Gallery Rendering Layout Engine
+        function renderGallery() {
+            if (state.galleryItems.length === 0) {
+                elements.galleryGrid.classList.add('hidden');
+                elements.galleryEmpty.classList.remove('hidden');
+            } else {
+                elements.galleryGrid.classList.remove('hidden');
+                elements.galleryEmpty.classList.add('hidden');
+            }
+
+            elements.galleryGrid.innerHTML = state.galleryItems.map((item, i) => `
+                <div class="scene-card glass-panel rounded-xl overflow-hidden">
+                    <div class="relative">
+                        <img src="${item.src}" class="w-full scene-thumb" alt="Video ${i + 1}">
+                        <div class="absolute top-2 right-2 badge px-2 py-1 rounded text-xs flex items-center gap-1">
+                            <i class="fas fa-play text-[10px]"></i>${item.duration}s
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <p class="text-xs text-gray-400 truncate">${item.prompt || 'No text prompt description'}</p>
+                        <div class="flex items-center justify-between mt-2">
+                            <span class="text-[10px] text-gray-500 uppercase">${item.style}</span>
+                            <span class="text-[10px] text-gray-600 font-mono">${item.timestamp}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        elements.clearGalleryBtn.addEventListener('click', () => {
+            if (state.galleryItems.length === 0) return;
+            if (confirm('Are you sure you want to clear your collection history?')) {
+                state.galleryItems = [];
+                renderGallery();
+                showNotification('Gallery flushed', 'info');
+            }
+        });
+
+        // Settings Dialog Trigger
+        elements.settingsBtn.addEventListener('click', () => {
+            showNotification('Preferences & cloud variables configuration coming soon.', 'info');
+        });
+
+        // Universal Light/Dark Theme Switching System
+        let isDark = true;
+        elements.themeToggle.addEventListener('click', () => {
+            isDark = !isDark;
+            const body = document.body;
+            const icon = elements.themeToggle.querySelector('i');
+            
+            if (isDark) {
+                body.classList.remove('light-theme');
+                icon.className = 'fas fa-moon';
+            } else {
+                body.classList.add('light-theme');
+                icon.className = 'fas fa-sun';
+            }
+        });
+
+        // Global Initialization Calls
+        renderSequencer();
+        renderGallery();
+        updateAgentStatus(0);
+    </script>
+</body>
+</html>
