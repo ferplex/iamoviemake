@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secuenciador Cinematográfico B/N</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --panel: #141414;
+            --border: #2a2a2a;
+            --text: #e0e0e0;
+            --accent: #d4d4d4;
+            --highlight: #ffffff;
+        }
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        header {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 { font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase; margin: 0; }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            flex: 1;
+        }
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .panel h2 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+            color: var(--accent);
+        }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.8rem; margin-bottom: 5px; color: #888; }
+        input[type="file"] {
+            background: #000;
+            border: 1px dashed #444;
+            color: #888;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+        .radio-group { display: flex; gap: 10px; }
+        .radio-group label {
+            flex: 1;
+            text-align: center;
+            background: #000;
+            padding: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .radio-group input { display: none; }
+        .radio-group input:checked + span {
+            color: var(--highlight);
+            font-weight: bold;
+        }
+        .radio-group label:has(input:checked) {
+            border-color: var(--highlight);
+            background: #1a1a1a;
+        }
+        button {
+            background: #000;
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 10px 15px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-family: inherit;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            transition: 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover { background: #222; border-color: var(--accent); }
+        button.primary { background: #fff; color: #000; font-weight: bold; border-color: #fff; }
+        button.primary:hover { background: #ccc; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        #timeline {
+            display: flex;
+            gap: 5px;
+            overflow-x: auto;
+            padding: 10px 0;
+            min-height: 100px;
+            background: #050505;
+            border: 1px solid var(--border);
+        }
+        .frame-thumb {
+            min-width: 80px;
+            height: 60px;
+            background: #222;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            position: relative;
+        }
+        .frame-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .frame-thumb .del-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(0,0,0,0.7);
+            color: red;
+            border: none;
+            width: 16px;
+            height: 16px;
+            font-size: 10px;
+            padding: 0;
+            margin: 0;
+            line-height: 16px;
+        }
+
+        #previewCanvas {
+            width: 100%;
+            max-height: 400px;
+            background: #000;
+            display: block;
+            margin: 0 auto;
+            border: 1px solid var(--border);
+        }
+        #progressBar {
+            width: 100%;
+            height: 4px;
+            background: #222;
+            margin-top: 10px;
+            display: none;
+        }
+        #progressFill {
+            height: 100%;
+            background: #fff;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        .status { font-size: 0.8rem; color: #666; margin-top: 5px; text-align: center; }
+        .flex-row { display: flex; gap: 10px; }
+        .flex-row button { margin-top: 0; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Secuenciador Cinematográfico // B/N Luminoso</h1>
+    <div style="font-size: 0.8rem; color: #666;">Renderizado Local sin IA</div>
+</header>
+
+<div class="main-grid">
+    <!-- PANEL IZQUIERDO: CONTROLES -->
+    <div class="panel">
+        <h2>1. Activos</h2>
+        <div class="input-group">
+            <label>Imágenes (Orden exacto de movimiento)</label>
+            <input type="file" id="imageInput" multiple accept="image/*">
+        </div>
+        <div class="input-group">
+            <label>Subtítulos (.txt)</label>
+            <input type="file" id="subInput" accept=".txt">
+            <div style="font-size: 0.7rem; color: #555; margin-top:5px;">Formato TXT: `0.0 | Texto`</div>
+        </div>
+
+        <h2>2. Configuración</h2>
+        <div class="input-group">
+            <label>Duración Total</label>
+            <div class="radio-group">
+                <label><input type="radio" name="duration" value="5" checked><span>5 Seg</span></label>
+                <label><input type="radio" name="duration" value="10"><span>10 Seg</span></label>
+                <label><input type="radio" name="duration" value="20"><span>20 Seg</span></label>
+            </div>
+        </div>
+        <div class="input-group">
+            <label>FPS (Fotogramas por segundo)</label>
+            <div class="radio-group">
+                <label><input type="radio" name="fps" value="24" checked><span>24</span></label>
+                <label><input type="radio" name="fps" value="30"><span>30</span></label>
+            </div>
+        </div>
+
+        <h2>3. Proyecto</h2>
+        <div class="flex-row">
+            <button id="saveBtn">Guardar JSON</button>
+            <button id="loadBtn">Cargar JSON</button>
+        </div>
+        <input type="file" id="jsonInput" accept=".json" style="display:none">
+        
+        <button class="primary" id="renderBtn" style="margin-top: 20px;">Renderizar y Descargar</button>
+        <div id="progressBar"><div id="progressFill"></div></div>
+        <div id="status" class="status">Listo.</div>
+    </div>
+
+    <!-- PANEL DERECHO: TIMELINE Y PREVIEW -->
+    <div class="panel">
+        <h2>Línea de Tiempo (Secuencia)</h2>
+        <div id="timeline">
+            <div style="color: #444; width: 100%; text-align: center; align-self: center;">Sube imágenes para iniciar la secuencia</div>
+        </div>
+        
+        <h2 style="margin-top: 20px;">Vista Previa (Filtro Activo)</h2>
+        <canvas id="previewCanvas" width="1280" height="720"></canvas>
+    </div>
+</div>
+
+<script>
+    // --- ESTADO DE LA APLICACIÓN ---
+    let state = {
+        images: [],      // { id, name, dataURL, imgObj }
+        subtitles: [],   // { time, text }
+        duration: 5,
+        fps: 24
+    };
+
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas.getContext('2d');
+    const timeline = document.getElementById('timeline');
+    const status = document.getElementById('status');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+
+    // --- FILTRO CINEMATOGRÁFICO B/N LUMINOSO ---
+    ctx.filter = 'grayscale(100%) contrast(1.4) brightness(1.2)';
+
+    // --- CARGA DE IMÁGENES ---
+    document.getElementById('imageInput').addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        state.images = []; // Reset
+        let loaded = 0;
+        
+        files.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    state.images.push({
+                        id: Date.now() + index,
+                        name: file.name,
+                        dataURL: event.target.result,
+                        imgObj: img
+                    });
+                    loaded++;
+                    if (loaded === files.length) {
+                        renderTimeline();
+                        drawPreviewFrame(0);
+                    }
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // --- CARGA DE SUBTÍTULOS ---
+    document.getElementById('subInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const lines = event.target.result.split('\n').filter(l => l.trim());
+            state.subtitles = lines.map(line => {
+                const parts = line.split('|');
+                return {
+                    time: parseFloat(parts[0].trim()) || 0,
+                    text: parts.slice(1).join('|').trim()
+                };
+            }).sort((a, b) => a.time - b.time);
+            status.textContent = `${state.subtitles.length} subtítulos cargados.`;
+        };
+        reader.readAsText(file);
+    });
+
+    // --- TIMELINE UI ---
+    function renderTimeline() {
+        timeline.innerHTML = '';
+        if (state.images.length === 0) {
+            timeline.innerHTML = '<div style="color: #444; width: 100%; text-align: center; align-self: center;">Sube imágenes para iniciar la secuencia</div>';
+            return;
+        }
+        state.images.forEach((img, index) => {
+            const div = document.createElement('div');
+            div.className = 'frame-thumb';
+            div.innerHTML = `
+                <img src="${img.dataURL}" alt="${img.name}">
+                <button class="del-btn" onclick="removeImage(${index})">X</button>
+                <div style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.7);padding:1px 3px;font-size:9px;">${index + 1}</div>
+            `;
+            timeline.appendChild(div);
+        });
+    }
+
+    window.removeImage = (index) => {
+        state.images.splice(index, 1);
+        renderTimeline();
+        drawPreviewFrame(0);
+    };
+
+    // --- PREVIEW ---
+    function drawPreviewFrame(elapsedTime) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (state.images.length === 0) return;
+
+        // Calcular qué imagen mostrar
+        const imgIndex = Math.floor((elapsedTime / state.duration) * state.images.length);
+        const safeIndex = Math.min(imgIndex, state.images.length - 1);
+        const img = state.images[safeIndex].imgObj;
+
+        // Dibujar imagen ajustada (Cover)
+        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+        const x = (canvas.width / 2) - (img.width / 2) * scale;
+        const y = (canvas.height / 2) - (img.height / 2) * scale;
+        
+        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+
+        // Dibujar Subtítulos
+        let activeSub = null;
+        for (let i = 0; i < state.subtitles.length; i++) {
+            const start = state.subtitles[i].time;
+            const end = (i + 1 < state.subtitles.length) ? state.subtitles[i + 1].time : state.duration;
+            if (elapsedTime >= start && elapsedTime < end) {
+                activeSub = state.subtitles[i].text;
+                break;
+            }
+        }
+
+        if (activeSub) {
+            ctx.filter = 'none'; // Reset filter for text
+            ctx.font = 'bold 36px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#000000';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            ctx.fillText(activeSub, canvas.width / 2, canvas.height - 60);
+            ctx.shadowBlur = 0; // Reset
+            ctx.filter = 'grayscale(100%) contrast(1.4) brightness(1.2)'; // Reapply
+        }
+    }
+
+    // --- CONFIGURACIÓN ---
+    document.querySelectorAll('input[name="duration"]').forEach(radio => {
+        radio.addEventListener('change', (e) => state.duration = parseInt(e.target.value));
+    });
+    document.querySelectorAll('input[name="fps"]').forEach(radio => {
+        radio.addEventListener('change', (e) => state.fps = parseInt(e.target.value));
+    });
+
+    // --- RENDERIZADO Y DESCARGA (EL NÚCLEO) ---
+    document.getElementById('renderBtn').addEventListener('click', async () => {
+        if (state.images.length === 0) {
+            alert('Debes subir al menos una imagen.');
+            return;
+        }
+
+        const btn = document.getElementById('renderBtn');
+        btn.disabled = true;
+        btn.textContent = 'RENDERIZANDO...';
+        progressBar.style.display = 'block';
+        progressFill.style.width = '0%';
+
+        const stream = canvas.captureStream(state.fps);
+        const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm;codecs=vp9',
+            videoBitsPerSecond: 8000000 // 8 Mbps para buena calidad
+        });
+
+        const chunks = [];
+        mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `secuencia_cinematografica_${state.duration}s_${Date.now()}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            btn.disabled = false;
+            btn.textContent = 'RENDERIZAR Y DESCARGAR';
+            progressBar.style.display = 'none';
+            status.textContent = 'Descarga completada.';
+        };
+
+        mediaRecorder.start();
+        status.textContent = 'Generando caché de video...';
+
+        let startTime = null;
+        function renderLoop(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const elapsed = (timestamp - startTime) / 1000;
+
+            if (elapsed >= state.duration) {
+                mediaRecorder.stop();
+                return;
+            }
+
+            drawPreviewFrame(elapsed);
+            progressFill.style.width = `${(elapsed / state.duration) * 100}%`;
+            requestAnimationFrame(renderLoop);
+        }
+
+        requestAnimationFrame(renderLoop);
+    });
+
+    // --- GUARDAR / CARGAR PROYECTO (JSON) ---
+    document.getElementById('saveBtn').addEventListener('click', () => {
+        const projectData = {
+            duration: state.duration,
+            fps: state.fps,
+            subtitles: state.subtitles,
+            images: state.images.map(img => ({ name: img.name, dataURL: img.dataURL }))
+        };
+        const blob = new Blob([JSON.stringify(projectData)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `proyecto_secuencia_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        status.textContent = 'Proyecto guardado en JSON.';
+    });
+
+    document.getElementById('loadBtn').addEventListener('click', () => {
+        document.getElementById('jsonInput').click();
+    });
+
+    document.getElementById('jsonInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                state.duration = data.duration;
+                state.fps = data.fps;
+                state.subtitles = data.subtitles || [];
+                state.images = [];
+                
+                let loaded = 0;
+                data.images.forEach((imgData, index) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        state.images.push({
+                            id: Date.now() + index,
+                            name: imgData.name,
+                            dataURL: imgData.dataURL,
+                            imgObj: img
+                        });
+                        loaded++;
+                        if (loaded === data.images.length) {
+                            renderTimeline();
+                            drawPreviewFrame(0);
+                            status.textContent = 'Proyecto cargado correctamente.';
+                        }
+                    };
+                    img.src = imgData.dataURL;
+                });
+            } catch (err) {
+                alert('Error al leer el archivo JSON.');
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    // Inicializar canvas negro
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+</script>
+
+</body>
+</html>
