@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Video Sequencer - Simple</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f10;
+    color: #e8e8e8;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #2a2a2a;
+    margin-bottom: 24px;
+  }
+  header h1 { font-size: 20px; font-weight: 600; }
+  .tabs { display: flex; gap: 4px; background: #1a1a1a; padding: 4px; border-radius: 8px; }
+  .tab {
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .tab.active { background: #2a2a2a; color: #fff; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 20px;
+  }
+  .panel {
+    background: #161617;
+    border: 1px solid #262626;
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+  .section { margin-bottom: 22px; }
+  .section:last-child { margin-bottom: 0; }
+
+  .upload-area {
+    border: 2px dashed #333;
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.2s;
+    background: #0f0f10;
+  }
+  .upload-area:hover { border-color: #555; background: #141414; }
+  .upload-area p { font-size: 13px; color: #888; }
+  .upload-area .hint { font-size: 11px; color: #555; margin-top: 6px; }
+
+  .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .opt-btn {
+    padding: 10px;
+    background: #0f0f10;
+    border: 1px solid #2a2a2a;
+    color: #aaa;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: 0.15s;
+  }
+  .opt-btn:hover { border-color: #444; color: #fff; }
+  .opt-btn.active { background: #fff; color: #000; border-color: #fff; font-weight: 600; }
+
+  .render-btn {
+    width: 100%;
+    padding: 14px;
+    background: #fff;
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: 0.2s;
+  }
+  .render-btn:hover { background: #ddd; }
+  .render-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+  .preview-wrap {
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 16/9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #preview { width: 100%; height: 100%; display: block; }
+  .placeholder { color: #444; font-size: 13px; }
+
+  .timeline {
+    display: flex;
+    gap: 6px;
+    padding: 12px;
+    background: #0f0f10;
+    border-radius: 8px;
+    overflow-x: auto;
+    min-height: 90px;
+    margin-top: 12px;
+  }
+  .thumb {
+    flex-shrink: 0;
+    width: 100px;
+    height: 70px;
+    border-radius: 4px;
+    background: #1a1a1a;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #2a2a2a;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb .num {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+  .thumb .del {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    background: rgba(0,0,0,0.7);
+    color: #ff5555;
+    border: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .progress {
+    width: 100%;
+    height: 3px;
+    background: #222;
+    border-radius: 2px;
+    margin-top: 12px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress.active { display: block; }
+  .progress-bar {
+    height: 100%;
+    background: #fff;
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+  .status {
+    font-size: 12px;
+    color: #666;
+    margin-top: 8px;
+    text-align: center;
+    min-height: 16px;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #888;
+    margin-top: 8px;
+  }
+  .empty-timeline {
+    color: #444;
+    font-size: 12px;
+    width: 100%;
+    text-align: center;
+    align-self: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Video Sequencer</h1>
+    <div class="tabs">
+      <button class="tab active">Generator</button>
+      <button class="tab">Sequencer</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- PANEL IZQUIERDO -->
+    <div class="panel">
+      <div class="section">
+        <h2>Imágenes</h2>
+        <label class="upload-area" for="imgInput">
+          <p>📁 Subir imágenes (en orden)</p>
+          <p class="hint">PNG, JPG, WEBP • Se distribuyen en el tiempo</p>
+        </label>
+        <input type="file" id="imgInput" multiple accept="image/*" style="display:none">
+        <div class="info-row">
+          <span id="imgCount">0 imágenes</span>
+          <span id="frameTime">0s por imagen</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Subtítulos (.txt)</h2>
+        <label class="upload-area" for="subInput" style="padding: 14px;">
+          <p style="font-size:12px;">📄 Cargar archivo .txt</p>
+          <p class="hint">Formato: 0.0 | Texto del subtítulo</p>
+        </label>
+        <input type="file" id="subInput" accept=".txt" style="display:none">
+      </div>
+
+      <div class="section">
+        <h2>Duración</h2>
+        <div class="options" id="durOptions">
+          <button class="opt-btn active" data-val="5">5 seg</button>
+          <button class="opt-btn" data-val="10">10 seg</button>
+          <button class="opt-btn" data-val="20">20 seg</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Calidad</h2>
+        <div class="options" id="fpsOptions">
+          <button class="opt-btn active" data-val="24">24 FPS</button>
+          <button class="opt-btn" data-val="30">30 FPS</button>
+        </div>
+      </div>
+
+      <button class="render-btn" id="renderBtn">⚡ Renderizar y Descargar</button>
+      <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="status" id="status">Listo para generar</div>
+    </div>
+
+    <!-- PANEL DERECHO -->
+    <div class="panel">
+      <h2>Vista Previa</h2>
+      <div class="preview-wrap">
+        <canvas id="preview" width="1280" height="720"></canvas>
+        <span class="placeholder" id="placeholder">Sube imágenes para comenzar</span>
+      </div>
+
+      <h2 style="margin-top:20px;">Timeline</h2>
+      <div class="timeline" id="timeline">
+        <div class="empty-timeline">Sin imágenes cargadas</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const state = {
+  images: [],
+  subtitles: [],
+  duration: 5,
+  fps: 24
+};
+
+const canvas = document.getElementById('preview');
+const ctx = canvas.getContext('2d');
+const timeline = document.getElementById('timeline');
+const status = document.getElementById('status');
+const progress = document.getElementById('progress');
+const progressBar = document.getElementById('progressBar');
+const placeholder = document.getElementById('placeholder');
+
+// Canvas negro inicial
+ctx.fillStyle = '#000';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+// === CARGA DE IMÁGENES ===
+document.getElementById('imgInput').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  
+  status.textContent = 'Cargando imágenes...';
+  state.images = [];
+  
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const dataURL = await readFile(file);
+    const img = await loadImage(dataURL);
+    state.images.push({ name: file.name, img, dataURL });
+  }
+  
+  updateUI();
+  drawFrame(0);
+  status.textContent = `${state.images.length} imágenes cargadas`;
+});
+
+function readFile(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function loadImage(src) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = src;
+  });
+}
+
+// === CARGA DE SUBTÍTULOS ===
+document.getElementById('subInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = (ev) => {
+    state.subtitles = ev.target.result.split('\n')
+      .map(l => l.trim())
+      .filter(l => l)
+      .map(l => {
+        const [t, ...rest] = l.split('|');
+        return { time: parseFloat(t) || 0, text: rest.join('|').trim() };
+      })
+      .sort((a, b) => a.time - b.time);
+    status.textContent = `${state.subtitles.length} subtítulos cargados`;
+    drawFrame(0);
+  };
+  r.readAsText(file);
+});
+
+// === OPCIONES ===
+document.querySelectorAll('#durOptions .opt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#durOptions .opt-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.duration = parseInt(btn.dataset.val);
+    updateUI();
+  });
+});
+
+document.querySelectorAll('#fpsOptions .opt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#fpsOptions .opt-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.fps = parseInt(btn.dataset.val);
+  });
+});
+
+// === UI ===
+function updateUI() {
+  document.getElementById('imgCount').textContent = `${state.images.length} imágenes`;
+  const perFrame = state.images.length ? (state.duration / state.images.length).toFixed(2) : 0;
+  document.getElementById('frameTime').textContent = `${perFrame}s por imagen`;
+  placeholder.style.display = state.images.length ? 'none' : 'block';
+  renderTimeline();
+}
+
+function renderTimeline() {
+  timeline.innerHTML = '';
+  if (!state.images.length) {
+    timeline.innerHTML = '<div class="empty-timeline">Sin imágenes cargadas</div>';
+    return;
+  }
+  state.images.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.innerHTML = `
+      <img src="${item.dataURL}">
+      <span class="num">${i + 1}</span>
+      <button class="del" data-i="${i}">×</button>
+    `;
+    timeline.appendChild(div);
+  });
+  timeline.querySelectorAll('.del').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.images.splice(parseInt(b.dataset.i), 1);
+      updateUI();
+      drawFrame(0);
+    });
+  });
+}
+
+// === DIBUJAR FRAME (SIN FILTROS) ===
+function drawFrame(elapsed) {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  if (!state.images.length) return;
+  
+  // Imagen actual según tiempo
+  const idx = Math.min(
+    Math.floor((elapsed / state.duration) * state.images.length),
+    state.images.length - 1
+  );
+  const img = state.images[idx].img;
+  
+  // Ajuste tipo "cover"
+  const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  const x = (canvas.width - w) / 2;
+  const y = (canvas.height - h) / 2;
+  ctx.drawImage(img, x, y, w, h);
+  
+  // Subtítulo activo
+  let activeSub = null;
+  for (let i = 0; i < state.subtitles.length; i++) {
+    const start = state.subtitles[i].time;
+    const end = (i + 1 < state.subtitles.length) ? state.subtitles[i + 1].time : state.duration + 1;
+    if (elapsed >= start && elapsed < end) {
+      activeSub = state.subtitles[i].text;
+      break;
+    }
+  }
+  
+  if (activeSub) {
+    ctx.font = 'bold 38px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.lineWidth = 4;
+    ctx.strokeText(activeSub, canvas.width / 2, canvas.height - 50);
+    ctx.fillText(activeSub, canvas.width / 2, canvas.height - 50);
+  }
+}
+
+// === RENDER Y DESCARGA ===
+document.getElementById('renderBtn').addEventListener('click', () => {
+  if (!state.images.length) {
+    alert('Sube al menos una imagen');
+    return;
+  }
+  
+  const btn = document.getElementById('renderBtn');
+  btn.disabled = true;
+  btn.textContent = 'Renderizando...';
+  progress.classList.add('active');
+  progressBar.style.width = '0%';
+  status.textContent = 'Iniciando renderizado...';
+  
+  // Stream del canvas
+  const stream = canvas.captureStream(state.fps);
+  
+  // Elegir codec disponible
+  let mimeType = 'video/webm;codecs=vp9';
+  if (!MediaRecorder.isTypeSupported(mimeType)) {
+    mimeType = 'video/webm;codecs=vp8';
+  }
+  if (!MediaRecorder.isTypeSupported(mimeType)) {
+    mimeType = 'video/webm';
+  }
+  
+  const recorder = new MediaRecorder(stream, {
+    mimeType,
+    videoBitsPerSecond: 5000000
+  });
+  
+  const chunks = [];
+  recorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) chunks.push(e.data);
+  };
+  
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    if (blob.size < 1000) {
+      status.textContent = 'Error: archivo vacío. Intenta de nuevo.';
+      resetBtn();
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `video_${state.duration}s_${Date.now()}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    
+    status.textContent = '✓ Descarga completada';
+    resetBtn();
+  };
+  
+  recorder.onerror = (e) => {
+    status.textContent = 'Error en renderizado';
+    resetBtn();
+  };
+  
+  recorder.start();
+  
+  // Loop de renderizado
+  const startTime = performance.now();
+  const totalMs = state.duration * 1000;
+  
+  function loop(now) {
+    const elapsed = (now - startTime) / 1000;
+    const pct = Math.min((elapsed / state.duration) * 100, 100);
+    progressBar.style.width = pct + '%';
+    
+    drawFrame(elapsed);
+    
+    if (elapsed >= state.duration) {
+      // Frame final
+      drawFrame(state.duration - 0.01);
+      setTimeout(() => recorder.stop(), 100);
+      return;
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  
+  function resetBtn() {
+    btn.disabled = false;
+    btn.textContent = '⚡ Renderizar y Descargar';
+    setTimeout(() => progress.classList.remove('active'), 1500);
+  }
+});
+
+updateUI();
+</script>
+</body>
+</html>
